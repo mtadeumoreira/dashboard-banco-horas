@@ -1,9 +1,10 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import tempfile
+from datetime import datetime
 
 st.set_page_config(layout="wide")
 
@@ -28,10 +29,11 @@ st.sidebar.title("⚙️ Configurações")
 valor_hora = st.sidebar.number_input("💰 Valor da hora (R$)", value=17.52)
 
 if st.sidebar.button("🔄 Atualizar Dados"):
+    st.cache_data.clear()
     st.rerun()
 
-# ===== FUNÇÃO GOOGLE SHEETS =====
-@st.cache_data(ttl=60)
+# ===== GOOGLE SHEETS =====
+@st.cache_data(ttl=300)
 def carregar_google():
     sheet_id = "1zFKLz8SMEifA8si1f-ORLdGnbrNkOlw3vP7jNzDff9Y"
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
@@ -40,20 +42,19 @@ def carregar_google():
 # ===== UPLOAD =====
 file = st.file_uploader("📁 Envie o relatório CSV (opcional)", type=["csv"])
 
-# ===== ESCOLHA AUTOMÁTICA =====
+# ===== FONTE DE DADOS =====
 if file is not None:
     st.success("📁 Dados carregados via CSV")
     df = pd.read_csv(file, sep=";")
-
 else:
     try:
         df = carregar_google()
         st.info("🌐 Dados carregados automaticamente (Google Sheets)")
-    except:
-        st.error("❌ Erro ao carregar dados. Envie um CSV manualmente.")
+    except Exception as e:
+        st.error(f"❌ Erro ao carregar dados: {e}")
         st.stop()
 
-# ===== PADRONIZAÇÃO DE COLUNAS =====
+# ===== PADRONIZAÇÃO =====
 df = df.rename(columns={
     df.columns[0]: "Funcionario",
     df.columns[1]: "Horas",
@@ -86,7 +87,7 @@ def converter_horas(valor):
             total = float(h) + float(m)/60 + float(s)/3600
 
         else:
-            return float(valor)
+            total = float(valor)
 
         return -total if negativo else total
 
@@ -95,28 +96,25 @@ def converter_horas(valor):
 
 df["Saldo_horas"] = df["Saldo"].apply(converter_horas)
 
-# ===== VALIDAÇÃO COMPLETA =====
+# ===== VALIDAÇÃO =====
 total_registros = len(df)
 total_convertidos = df["Saldo_horas"].notna().sum()
-total_positivos = (df["Saldo_horas"] > 0).sum()
+total_invalidos = total_registros - total_convertidos
 
-with st.expander("🔍 Validação dos dados"):
-    st.write(f"Total de registros no arquivo: {total_registros}")
-    st.write(f"Convertidos com sucesso: {total_convertidos}")
-    st.write(f"Saldo positivo (>0): {total_positivos}")
-
-# ===== REMOVER APENAS OS INVÁLIDOS =====
 df = df.dropna(subset=["Saldo_horas"])
 
-# ===== KPIs =====
 df_pos = df[df["Saldo_horas"] > 0]
 
+# ===== KPIs =====
 total_pos = df_pos["Saldo_horas"].sum()
 valor_pagar = total_pos * valor_hora
 
 qtd_func = len(df_pos)
 media_horas = df_pos["Saldo_horas"].mean() if not df_pos.empty else 0
 media_valor = valor_pagar / qtd_func if qtd_func > 0 else 0
+
+percentual_positivo = (qtd_func / len(df)) * 100 if len(df) > 0 else 0
+top_funcionario = df_pos.sort_values("Saldo_horas", ascending=False).head(1)
 
 # ===== SEMÁFORO =====
 if media_horas == 0:
@@ -129,86 +127,70 @@ else:
     cor = "red"
     status = "🔴 Crítico"
 
+# ===== INFO GERAL =====
+st.caption(f"🕒 Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+
+with st.expander("🔍 Validação dos dados"):
+    st.write(f"Total registros: {total_registros}")
+    st.write(f"Convertidos: {total_convertidos}")
+    st.write(f"Inválidos: {total_invalidos}")
+
 # ===== CARDS =====
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
-col1.markdown(f"""
-<div style="background:#0a7d3b;padding:20px;border-radius:10px;color:white;text-align:center">
-<h4>⏱️ Banco Positivo</h4>
-<h2>{round(total_pos,2)} horas</h2>
-</div>
-""", unsafe_allow_html=True)
+col1.metric("⏱️ Banco Positivo", f"{round(total_pos,2)} h")
+col2.metric("💰 Valor a Pagar", f"R$ {valor_pagar:,.2f}")
+col3.metric("👥 % com saldo", f"{percentual_positivo:.1f}%")
+col4.metric("📊 Média por funcionário", f"{media_horas:.1f} h")
 
-col2.markdown(f"""
-<div style="background:#f2c94c;padding:20px;border-radius:10px;text-align:center">
-<h4>💰 Valor a Pagar</h4>
-<h2>R$ {valor_pagar:,.2f}</h2>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(f"### 🚨 Situação: {status}")
 
-col3.markdown(f"""
-<div style="background:{cor};padding:20px;border-radius:10px;color:white;text-align:center">
-<h4>🚨 Situação do Banco</h4>
-<p>👥 {qtd_func} funcionários</p>
-<p>💰 Média: R$ {media_valor:,.2f}</p>
-<h3>{status}</h3>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ===== GRÁFICO HORAS =====
-st.subheader("🏆 Top maiores saldos de horas")
-
+# ===== GRÁFICOS =====
 ranking = df_pos.sort_values("Saldo_horas", ascending=False).head(10)
 
 fig = px.bar(
     ranking,
     x="Funcionario",
     y="Saldo_horas",
-    text=ranking["Saldo_horas"].round(1),
-    color_discrete_sequence=["#0a7d3b"]
+    text=ranking["Saldo_horas"].round(1)
 )
-
-fig.update_traces(textposition='outside')
-
-fig.update_layout(
-    height=600,
-    margin=dict(t=80),
-    xaxis_tickangle=-45
-)
-
 st.plotly_chart(fig, use_container_width=True)
 
-# ===== GRÁFICO FINANCEIRO =====
 ranking["Valor_R$"] = ranking["Saldo_horas"] * valor_hora
-ranking["Valor_formatado"] = ranking["Valor_R$"].apply(lambda x: f"R$ {x:,.2f}")
-
-st.subheader("💰 Custo por Funcionário")
 
 fig2 = px.bar(
     ranking,
     x="Funcionario",
     y="Valor_R$",
-    text="Valor_formatado",
-    color_discrete_sequence=["#f2c94c"]
+    text=ranking["Valor_R$"].apply(lambda x: f"R$ {x:,.0f}")
 )
-
-fig2.update_traces(textposition='outside')
-
-fig2.update_layout(
-    height=600,
-    margin=dict(t=80),
-    xaxis_tickangle=-45
-)
-
 st.plotly_chart(fig2, use_container_width=True)
-
-st.markdown("---")
 
 # ===== LISTA =====
 st.subheader("📋 Funcionários com saldo positivo")
+st.dataframe(df_pos.sort_values("Saldo_horas", ascending=False), use_container_width=True)
 
-df_lista = df_pos.sort_values("Saldo_horas", ascending=False)
+# ===== PDF =====
+def gerar_pdf():
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    doc = SimpleDocTemplate(temp_file.name)
+    styles = getSampleStyleSheet()
 
-st.dataframe(df_lista[["Funcionario","Saldo_horas"]], use_container_width=True)
+    conteudo = []
+
+    conteudo.append(Paragraph("Relatório Executivo - Banco de Horas", styles['Title']))
+    conteudo.append(Spacer(1, 12))
+
+    conteudo.append(Paragraph(f"Total de horas positivas: {round(total_pos,2)}", styles['Normal']))
+    conteudo.append(Paragraph(f"Valor estimado: R$ {valor_pagar:,.2f}", styles['Normal']))
+    conteudo.append(Paragraph(f"Média por funcionário: {media_horas:.2f}", styles['Normal']))
+    conteudo.append(Paragraph(f"Situação: {status}", styles['Normal']))
+
+    doc.build(conteudo)
+
+    return temp_file.name
+
+if st.button("📄 Exportar PDF Executivo"):
+    pdf_path = gerar_pdf()
+    with open(pdf_path, "rb") as f:
+        st.download_button("⬇️ Baixar PDF", f, file_name="relatorio_banco_horas.pdf")
