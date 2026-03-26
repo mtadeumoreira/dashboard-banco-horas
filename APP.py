@@ -60,39 +60,40 @@ df = df.rename(columns={
     df.columns[-1]: "Saldo"
 })
     # ===== LIMPEZA =====
+# ===== LIMPEZA =====
 df["Funcionario"] = df["Funcionario"].astype(str).str.strip()
 df = df[(df["Funcionario"] != "") & (~df["Funcionario"].str.lower().isin(["null","none","nan"]))]
 
-    # ===== CONVERSÃO ROBUSTA (HH:MM e HH:MM:SS) =====
-    def converter_horas(valor):
-        try:
-            valor = str(valor).strip()
+# ===== CONVERSÃO ROBUSTA =====
+def converter_horas(valor):
+    try:
+        valor = str(valor).strip()
 
-            if valor in ["", "nan", "None", "null"]:
-                return None
-
-            negativo = "-" in valor
-            valor = valor.replace("-", "")
-
-            partes = valor.split(":")
-
-            if len(partes) == 2:  # HH:MM
-                h, m = partes
-                total = float(h) + float(m)/60
-
-            elif len(partes) == 3:  # HH:MM:SS
-                h, m, s = partes
-                total = float(h) + float(m)/60 + float(s)/3600
-
-            else:
-                return float(valor)
-
-            return -total if negativo else total
-
-        except:
+        if valor in ["", "nan", "None", "null"]:
             return None
 
-    df["Saldo_horas"] = df["Saldo"].apply(converter_horas)
+        negativo = "-" in valor
+        valor = valor.replace("-", "")
+
+        partes = valor.split(":")
+
+        if len(partes) == 2:
+            h, m = partes
+            total = float(h) + float(m)/60
+
+        elif len(partes) == 3:
+            h, m, s = partes
+            total = float(h) + float(m)/60 + float(s)/3600
+
+        else:
+            return float(valor)
+
+        return -total if negativo else total
+
+    except:
+        return None
+
+df["Saldo_horas"] = df["Saldo"].apply(converter_horas)
 
     # ===== VALIDAÇÃO COMPLETA =====
     total_registros = len(df)
