@@ -60,8 +60,8 @@ df = df.rename(columns={
     df.columns[-1]: "Saldo"
 })
     # ===== LIMPEZA =====
-    df["Funcionario"] = df["Funcionario"].astype(str).str.strip()
-    df = df[(df["Funcionario"] != "") & (~df["Funcionario"].str.lower().isin(["null","none","nan"]))]
+df["Funcionario"] = df["Funcionario"].astype(str).str.strip()
+df = df[(df["Funcionario"] != "") & (~df["Funcionario"].str.lower().isin(["null","none","nan"]))]
 
     # ===== CONVERSÃO ROBUSTA (HH:MM e HH:MM:SS) =====
     def converter_horas(valor):
