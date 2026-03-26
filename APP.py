@@ -30,18 +30,35 @@ valor_hora = st.sidebar.number_input("💰 Valor da hora (R$)", value=17.52)
 if st.sidebar.button("🔄 Atualizar Dados"):
     st.rerun()
 
-file = st.file_uploader("📁 Envie o relatório CSV", type=["csv"])
+# ===== FUNÇÃO GOOGLE SHEETS =====
+@st.cache_data(ttl=60)
+def carregar_google():
+    sheet_id = "1zFKLz8SMEifA8si1f-ORLdGnbrNkOlw3vP7jNzDff9Y"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    return pd.read_csv(url)
 
-if file:
+# ===== UPLOAD =====
+file = st.file_uploader("📁 Envie o relatório CSV (opcional)", type=["csv"])
 
+# ===== ESCOLHA AUTOMÁTICA =====
+if file is not None:
+    st.success("📁 Dados carregados via CSV")
     df = pd.read_csv(file, sep=";")
 
-    df = df.rename(columns={
-        df.columns[0]: "Funcionario",
-        df.columns[1]: "Horas",
-        df.columns[-1]: "Saldo"
-    })
+else:
+    try:
+        df = carregar_google()
+        st.info("🌐 Dados carregados automaticamente (Google Sheets)")
+    except:
+        st.error("❌ Erro ao carregar dados. Envie um CSV manualmente.")
+        st.stop()
 
+# ===== PADRONIZAÇÃO DE COLUNAS =====
+df = df.rename(columns={
+    df.columns[0]: "Funcionario",
+    df.columns[1]: "Horas",
+    df.columns[-1]: "Saldo"
+})
     # ===== LIMPEZA =====
     df["Funcionario"] = df["Funcionario"].astype(str).str.strip()
     df = df[(df["Funcionario"] != "") & (~df["Funcionario"].str.lower().isin(["null","none","nan"]))]
