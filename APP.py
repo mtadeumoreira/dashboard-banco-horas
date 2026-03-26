@@ -163,11 +163,13 @@ st.markdown(f"### 🚨 Situação: {status}")
 # ===== PDF =====
 def gerar_pdf():
     temp_file = tempfile.NamedTemporaryFile(delete=False)
+
     doc = SimpleDocTemplate(temp_file.name)
     styles = getSampleStyleSheet()
 
     conteudo = []
 
+    # ===== LOGO =====
     try:
         logo = Image("logo.png", width=2*inch, height=1*inch)
         logo.hAlign = 'CENTER'
@@ -175,32 +177,61 @@ def gerar_pdf():
     except:
         pass
 
+    # ===== TÍTULO =====
     conteudo.append(Paragraph("<b>RELATÓRIO EXECUTIVO</b>", styles['Title']))
     conteudo.append(Paragraph("Banco de Horas", styles['Heading2']))
+    conteudo.append(Spacer(1, 15))
+
+    # ===== LINHA VERDE =====
+    linha = Table([[""]], colWidths=[500])
+    linha.setStyle(TableStyle([
+        ('LINEABOVE', (0,0), (-1,-1), 2, colors.HexColor("#0a7d3b"))
+    ]))
+    conteudo.append(linha)
     conteudo.append(Spacer(1, 20))
+
+    # ===== RESUMO EXECUTIVO (PADRÃO MANTIDO) =====
+    conteudo.append(Paragraph("<b>Resumo Executivo</b>", styles['Heading3']))
+    conteudo.append(Spacer(1, 10))
 
     dados_resumo = [
         ["Indicador", "Valor"],
+        ["Total de registros", total_registros],
+        ["Convertidos", total_convertidos],
+        ["Saldo positivo", qtd_func],
         ["Banco de horas (h)", round(total_pos,2)],
         ["Valor a pagar", f"R$ {valor_pagar:,.2f}"],
-        ["Funcionários", qtd_func],
-        ["Média (h)", f"{media_horas:.2f}"],
+        ["Funcionários impactados", qtd_func],
+        ["Média por funcionário", f"R$ {media_valor:,.2f}"],
+        ["Média de horas", f"{media_horas:.2f}"],
+        ["% com saldo positivo", f"{percentual_positivo:.1f}%"],
         ["Status", status]
     ]
 
-    tabela_resumo = Table(dados_resumo)
+    tabela_resumo = Table(dados_resumo, colWidths=[250, 250])
+
     tabela_resumo.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
     ]))
 
     conteudo.append(tabela_resumo)
-    conteudo.append(Spacer(1, 20))
+    conteudo.append(Spacer(1, 25))
 
-    dados_func = [["Função", "Funcionário", "Horas", "Valor"]]
+    # ===== FUNCIONÁRIOS (AGORA COM FUNÇÃO + VALOR) =====
+    conteudo.append(Paragraph("<b>Funcionários com saldo positivo</b>", styles['Heading3']))
+    conteudo.append(Spacer(1, 10))
 
-    for _, row in df_pos.iterrows():
+    dados_func = [["Função", "Funcionário", "Horas", "Valor (R$)"]]
+
+    df_lista = df_pos.sort_values(
+        by=["Funcao", "Saldo_horas"],
+        ascending=[True, False]
+    )
+
+    for _, row in df_lista.iterrows():
         dados_func.append([
             row["Funcao"],
             row["Funcionario"],
@@ -208,16 +239,26 @@ def gerar_pdf():
             f"R$ {row['Valor_R$']:,.2f}"
         ])
 
-    tabela_func = Table(dados_func)
+    tabela_func = Table(dados_func, colWidths=[120, 230, 80, 100])
+
     tabela_func.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
     ]))
 
     conteudo.append(tabela_func)
+    conteudo.append(Spacer(1, 20))
+
+    # ===== RODAPÉ =====
+    conteudo.append(Paragraph(
+        "Relatório gerado automaticamente pelo sistema de gestão de banco de horas.",
+        styles['Italic']
+    ))
 
     doc.build(conteudo)
+
     return temp_file.name
 
 if st.button("📄 Exportar PDF Executivo"):
