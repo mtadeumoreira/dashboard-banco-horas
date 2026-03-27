@@ -234,244 +234,109 @@ st.dataframe(
 if st.button("📄 Gerar Relatório PDF"):
 
     from reportlab.platypus import KeepTogether, PageBreak
-from collections import defaultdict
+    from collections import defaultdict
 
-def montar_blocos_funcionarios(conteudo, df_pos, styles):
+    def montar_blocos_funcionarios(conteudo, df_pos, styles):
 
-    ordem_prioridade = {
-        "MOTORISTA": 1,
-        "AUXILIAR DE ENTREGA": 2
-    }
+        ordem_prioridade = {
+            "MOTORISTA": 1,
+            "AUXILIAR DE ENTREGA": 2
+        }
 
-    def ordenar_funcao(funcao):
-        return ordem_prioridade.get(str(funcao).upper(), 99)
+        def ordenar_funcao(funcao):
+            return ordem_prioridade.get(str(funcao).upper(), 99)
 
-    grupos = defaultdict(list)
+        grupos = defaultdict(list)
 
-    for _, row in df_pos.iterrows():
-        grupos[row["Funcao"]].append(row)
+        for _, row in df_pos.iterrows():
+            grupos[row["Funcao"]].append(row)
 
-    funcoes_ordenadas = sorted(grupos.keys(), key=ordenar_funcao)
+        funcoes_ordenadas = sorted(grupos.keys(), key=ordenar_funcao)
 
-    total_geral_horas = 0
-    total_geral_valor = 0
+        for funcao in funcoes_ordenadas:
 
-    for i, funcao in enumerate(funcoes_ordenadas):
+            lista = grupos[funcao]
 
-        lista = grupos[funcao]
+            conteudo.append(Paragraph(f"<b>Função: {funcao}</b>", styles['Normal']))
+            conteudo.append(Spacer(1, 6))
 
-        elementos = []
+            dados_func = [["Funcionário", "Horas", "Valor (R$)"]]
 
-        elementos.append(Paragraph(f"<b>Função: {funcao}</b>", styles['Normal']))
-        elementos.append(Spacer(1, 6))
+            for row in lista:
+                dados_func.append([
+                    row["Funcionario"],
+                    f"{round(row['Saldo_horas'],2)} h",
+                    f"R$ {row['Valor_R$']:,.2f}"
+                ])
 
-        dados_func = [["Funcionário", "Horas", "Valor (R$)"]]
+            tabela = Table(dados_func, colWidths=[250, 80, 100])
 
-        subtotal_horas = 0
-        subtotal_valor = 0
+            tabela.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0a7d3b")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
+            ]))
 
-        for row in lista:
-            horas = round(row["Saldo_horas"], 2)
-            valor = row["Valor_R$"]
+            conteudo.append(tabela)
+            conteudo.append(Spacer(1, 15))
 
-            subtotal_horas += horas
-            subtotal_valor += valor
+    def gerar_pdf():
 
-            dados_func.append([
-                Paragraph(str(row["Funcionario"]), styles['Normal']),
-                f"{horas} h",
-                f"R$ {valor:,.2f}"
-            ])
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
 
-        tabela = Table(dados_func, colWidths=[250, 80, 100])
+        doc = SimpleDocTemplate(temp_file.name)
+        styles = getSampleStyleSheet()
+
+        conteudo = []
+
+        # TÍTULO
+        conteudo.append(Paragraph("<b>RELATÓRIO EXECUTIVO</b>", styles['Title']))
+        conteudo.append(Spacer(1, 15))
+
+        # RESUMO
+        resumo = [
+            ["Indicador", "Valor"],
+            ["Total de registros", total_registros],
+            ["Saldo positivo", qtd_func],
+            ["Banco de horas", f"{round(total_pos,2)} h"],
+            ["Valor a pagar", f"R$ {valor_pagar:,.2f}"],
+            ["Média horas", f"{media_horas:.2f}"],
+            ["Status", status]
+        ]
+
+        tabela = Table(resumo)
 
         tabela.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0a7d3b")),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0a7d3b")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
         ]))
 
-        elementos.append(tabela)
+        conteudo.append(tabela)
+        conteudo.append(Spacer(1, 20))
 
-        elementos.append(Spacer(1, 6))
-        elementos.append(
-            Paragraph(
-                f"<b>Subtotal:</b> {round(subtotal_horas,2)} h | R$ {subtotal_valor:,.2f}",
-                styles['Normal']
-            )
+        # LISTA AGRUPADA
+        montar_blocos_funcionarios(conteudo, df_pos, styles)
+
+        # RODAPÉ
+        conteudo.append(Spacer(1, 20))
+        conteudo.append(Paragraph(
+            f"Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            styles['Italic']
+        ))
+
+        doc.build(conteudo)
+
+        return temp_file.name
+
+    # EXECUTA
+    pdf_path = gerar_pdf()
+
+    # DOWNLOAD
+    with open(pdf_path, "rb") as f:
+        st.download_button(
+            "📥 Baixar PDF",
+            f,
+            file_name="relatorio_banco_horas.pdf"
         )
-
-        elementos.append(Spacer(1, 15))
-
-        # evita quebra feia
-        if len(lista) <= 15:
-            conteudo.append(KeepTogether(elementos))
-        else:
-            conteudo.extend(elementos)
-
-        # quebra controlada
-        if i > 0 and i % 2 == 0:
-            conteudo.append(PageBreak())
-
-        total_geral_horas += subtotal_horas
-        total_geral_valor += subtotal_valor
-
-    # TOTAL GERAL
-    conteudo.append(Spacer(1, 10))
-    conteudo.append(Paragraph("<b>TOTAL GERAL</b>", styles['Heading3']))
-    conteudo.append(Spacer(1, 5))
-
-    conteudo.append(
-        Paragraph(
-            f"<b>Horas:</b> {round(total_geral_horas,2)} h",
-            styles['Normal']
-        )
-    )
-
-    conteudo.append(
-        Paragraph(
-            f"<b>Valor:</b> R$ {total_geral_valor:,.2f}",
-            styles['Normal']
-        )
-    )
-
-def gerar_pdf():
-    temp_file = tempfile.NamedTemporaryFile(delete=False)
-
-    doc = SimpleDocTemplate(temp_file.name)
-    styles = getSampleStyleSheet()
-
-    conteudo = []
-
-    # ===== LOGO =====
-    try:
-        logo = Image("logo.png", width=2*inch, height=1*inch)
-        logo.hAlign = 'CENTER'
-        conteudo.append(logo)
-    except:
-        pass
-
-    # ===== TÍTULO =====
-    conteudo.append(Paragraph("<b>RELATÓRIO EXECUTIVO</b>", styles['Title']))
-    conteudo.append(Paragraph("Banco de Horas", styles['Heading2']))
-    conteudo.append(Spacer(1, 15))
-
-    # ===== LINHA =====
-    linha = Table([[""]], colWidths=[500])
-    linha.setStyle(TableStyle([
-        ('LINEABOVE', (0,0), (-1,-1), 2, colors.HexColor("#0a7d3b"))
-    ]))
-    conteudo.append(linha)
-    conteudo.append(Spacer(1, 20))
-
-    # ===== RESUMO EXECUTIVO =====
-    conteudo.append(Paragraph("<b>Resumo Executivo</b>", styles['Heading3']))
-    conteudo.append(Spacer(1, 10))
-
-    # ===== NORMALIZAR FUNÇÃO =====
-    def normalizar_funcao(funcao):
-        return str(funcao).replace("\n", " ").strip().upper()
-
-    df_temp = df_pos.copy()
-    df_temp["Funcao"] = df_temp["Funcao"].apply(normalizar_funcao)
-
-    # ===== AGRUPAMENTO POR FUNÇÃO =====
-    resumo_funcoes = df_temp.groupby("Funcao").agg({
-        "Saldo_horas": "sum",
-        "Valor_R$": "sum"
-    }).reset_index()
-
-    # ===== ORDEM PERSONALIZADA =====
-    def ordenar_funcao(funcao):
-        if "MOTORISTA" in funcao:
-            return (1, funcao)
-        elif "AUXILIAR DE ENTREGA" in funcao or "AUXILIAR DE ENTREGAS" in funcao:
-            return (2, funcao)
-        else:
-            return (3, funcao)
-
-    resumo_funcoes["ordem"] = resumo_funcoes["Funcao"].apply(ordenar_funcao)
-    resumo_funcoes = resumo_funcoes.sort_values("ordem")
-
-    # ===== TABELA RESUMO =====
-    dados_resumo = [
-        ["Indicador", "Valor"],
-        ["Total de registros", total_registros],
-        ["Convertidos", total_convertidos],
-        ["Saldo positivo", qtd_func],
-        ["Banco de horas (h)", round(total_pos, 2)],
-    ]
-
-    for _, row in resumo_funcoes.iterrows():
-        dados_resumo.append([
-            f"Total {row['Funcao']}",
-            f"{round(row['Saldo_horas'],2)} h | R$ {row['Valor_R$']:,.2f}"
-        ])
-
-    dados_resumo += [
-        ["Valor a pagar", f"R$ {valor_pagar:,.2f}"],
-        ["Funcionários impactados", qtd_func],
-        ["Média por funcionário", f"R$ {media_valor:,.2f}"],
-        ["Média de horas", f"{media_horas:.2f}"],
-        ["% com saldo positivo", f"{percentual_positivo:.1f}%"],
-        ["Status", status]
-    ]
-
-    tabela_resumo = Table(dados_resumo, colWidths=[250, 250])
-
-    tabela_resumo.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-    ]))
-
-    conteudo.append(tabela_resumo)
-    conteudo.append(Spacer(1, 25))
-
-    # ===== LISTA FUNCIONÁRIOS =====
-    conteudo.append(Paragraph("<b>Funcionários com saldo positivo</b>", styles['Heading3']))
-    conteudo.append(Spacer(1, 10))
-
-    df_lista = df_temp.copy()
-    df_lista["ordem"] = df_lista["Funcao"].apply(ordenar_funcao)
-
-    df_lista = df_lista.sort_values(
-        by=["ordem", "Saldo_horas"],
-        ascending=[True, False]
-    )
-
-    dados_func = [["Função", "Funcionário", "Horas", "Valor (R$)"]]
-
-    for _, row in df_lista.iterrows():
-        dados_func.append([
-            Paragraph(row["Funcao"], styles['Normal']),
-            Paragraph(row["Funcionario"], styles['Normal']),
-            f"{round(row['Saldo_horas'],2)} h",
-            f"R$ {row['Valor_R$']:,.2f}"
-        ])
-
-    tabela_func = Table(dados_func, colWidths=[120, 200, 80, 100])
-
-    tabela_func.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('GRID', (0,0), (-1,-1), 0.3, colors.grey),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-    ]))
-
-    conteudo.append(tabela_func)
-
-    # ===== RODAPÉ =====
-    conteudo.append(Spacer(1, 20))
-
-    content.append(Paragraph(
-        f"Relatório gerado automaticamente pelo sistema de gestão de banco de horas.{data_atual}",
-        styles["Italic"]
-    ))
-
-    doc.build(content)
-
-    with open(temp_file.name, "rb") as f:
-        st.download_button("📥 Baixar PDF", f, file_name="relatorio.pdf")
+    
