@@ -253,29 +253,31 @@ for funcao, lista in grupos.items():
         subtotal_valor += valor
 
         dados_func.append([
-            Paragraph(row["Funcionario"], styles['Normal']),
+            Paragraph(str(row["Funcionario"]), styles['Normal']),
             f"{horas} h",
             f"R$ {valor:,.2f}"
         ])
 
-    # ===== TABELA DA FUNÇÃO =====
+    # ===== TABELA =====
     tabela = Table(dados_func, colWidths=[250, 80, 100])
 
     tabela.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('GRID', (0,0), (-1,-1), 0.3, colors.grey),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0a7d3b")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
     ]))
 
     conteudo.append(tabela)
 
     # ===== SUBTOTAL =====
     conteudo.append(Spacer(1, 6))
-    conteudo.append(Paragraph(
-        f"<b>Subtotal:</b> {round(subtotal_horas,2)} h | R$ {subtotal_valor:,.2f}",
-        styles['Normal']
-    ))
+    conteudo.append(
+        Paragraph(
+            f"<b>Subtotal:</b> {round(subtotal_horas,2)} h | R$ {subtotal_valor:,.2f}",
+            styles['Normal']
+        )
+    )
 
     conteudo.append(Spacer(1, 15))
 
@@ -288,15 +290,19 @@ conteudo.append(Spacer(1, 10))
 conteudo.append(Paragraph("<b>TOTAL GERAL</b>", styles['Heading3']))
 conteudo.append(Spacer(1, 5))
 
-conteudo.append(Paragraph(
-    f"<b>Horas:</b> {round(total_geral_horas,2)} h",
-    styles['Normal']
-))
+conteudo.append(
+    Paragraph(
+        f"<b>Horas:</b> {round(total_geral_horas,2)} h",
+        styles['Normal']
+    )
+)
 
-conteudo.append(Paragraph(
-    f"<b>Valor:</b> R$ {total_geral_valor:,.2f}",
-    styles['Normal']
-))
+conteudo.append(
+    Paragraph(
+        f"<b>Valor:</b> R$ {total_geral_valor:,.2f}",
+        styles['Normal']
+    )
+)
 
     # ===== RODAPÉ =====
     conteudo.append(Paragraph(
