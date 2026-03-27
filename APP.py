@@ -169,8 +169,8 @@ col2.markdown(f"""
 col3.markdown(f"""
 <div style="background:#ffffff;padding:20px;border-radius:10px;text-align:center;border:2px solid #0a7d3b">
 <h4 style="color:#0a7d3b;">📊 Resumo Médio</h4>
-<p>⏱️ Média: <b>{media_horas:.2f} h</b></p>
-<p>💰 Média: <b>R$ {media_valor:,.2f}</b></p>
+<p>⏱️ Média Horas por Funcionario: <b>{media_horas:.2f} h</b></p>
+<p>💰 Média Valor por Funcionario: <b>R$ {media_valor:,.2f}</b></p>
 </div>
 """, unsafe_allow_html=True)
 
