@@ -295,24 +295,52 @@ def gerar_pdf():
     ]))
     conteudo.append(linha)
     conteudo.append(Spacer(1, 20))
+# ===== TOTAL POR FUNÇÃO =====
+resumo_funcoes = df_pos.groupby("Funcao").agg({
+    "Saldo_horas": "sum",
+    "Valor_R$": "sum"
+}).reset_index()
+
+# ORDEM PERSONALIZADA
+ordem_prioridade = {
+    "MOTORISTA": 1,
+    "AUXILIAR DE ENTREGA": 2
+}
+
+resumo_funcoes["ordem"] = resumo_funcoes["Funcao"].apply(
+    lambda x: ordem_prioridade.get(str(x).upper(), 99)
+)
+
+resumo_funcoes = resumo_funcoes.sort_values("ordem")
 
     # ===== RESUMO =====
     conteudo.append(Paragraph("<b>Resumo Executivo</b>", styles['Heading3']))
     conteudo.append(Spacer(1, 10))
 
     dados_resumo = [
-        ["Indicador", "Valor"],
-        ["Total de registros", total_registros],
-        ["Convertidos", total_convertidos],
-        ["Saldo positivo", qtd_func],
-        ["Banco de horas (h)", round(total_pos, 2)],
-        ["Valor a pagar", f"R$ {valor_pagar:,.2f}"],
-        ["Funcionários impactados", qtd_func],
-        ["Média por funcionário", f"R$ {media_valor:,.2f}"],
-        ["Média de horas", f"{media_horas:.2f}"],
-        ["% com saldo positivo", f"{percentual_positivo:.1f}%"],
-        ["Status", status]
-    ]
+    ["Indicador", "Valor"],
+    ["Total de registros", total_registros],
+    ["Convertidos", total_convertidos],
+    ["Saldo positivo", qtd_func],
+    ["Banco de horas (h)", round(total_pos, 2)],
+]
+
+# ===== INSERIR FUNÇÕES =====
+for _, row in resumo_funcoes.iterrows():
+    dados_resumo.append([
+        f"Total {row['Funcao']}",
+        f"{round(row['Saldo_horas'],2)} h | R$ {row['Valor_R$']:,.2f}"
+    ])
+
+# ===== CONTINUAÇÃO =====
+dados_resumo += [
+    ["Valor a pagar", f"R$ {valor_pagar:,.2f}"],
+    ["Funcionários impactados", qtd_func],
+    ["Média por funcionário", f"R$ {media_valor:,.2f}"],
+    ["Média de horas", f"{media_horas:.2f}"],
+    ["% com saldo positivo", f"{percentual_positivo:.1f}%"],
+    ["Status", status]
+]
 
     tabela_resumo = Table(dados_resumo, colWidths=[250, 250])
 
@@ -326,86 +354,46 @@ def gerar_pdf():
     conteudo.append(tabela_resumo)
     conteudo.append(Spacer(1, 25))
 
-    # ===== FUNCIONÁRIOS =====
-    conteudo.append(Paragraph("<b>Funcionários com saldo positivo</b>", styles['Heading3']))
-    conteudo.append(Spacer(1, 10))
+    # ===== LISTA SIMPLES =====
+conteudo.append(Paragraph("<b>Funcionários com saldo positivo</b>", styles['Heading3']))
+conteudo.append(Spacer(1, 10))
 
-    ordem_prioridade = {
+# ORDENAR FUNÇÕES
+def ordenar_funcao(funcao):
+    ordem = {
         "MOTORISTA": 1,
         "AUXILIAR DE ENTREGA": 2
     }
+    return ordem.get(str(funcao).upper(), 99)
 
-    def ordenar_funcao(funcao):
-        return ordem_prioridade.get(str(funcao).upper(), 99)
+df_lista = df_pos.sort_values(
+    by=["Funcao", "Saldo_horas"],
+    ascending=[True, False]
+)
 
-    grupos = defaultdict(list)
+df_lista["ordem"] = df_lista["Funcao"].apply(ordenar_funcao)
+df_lista = df_lista.sort_values(["ordem", "Saldo_horas"], ascending=[True, False])
 
-    for _, row in df_pos.iterrows():
-        grupos[row["Funcao"]].append(row)
+dados_func = [["Função", "Funcionário", "Horas", "Valor (R$)"]]
 
-    funcoes_ordenadas = sorted(grupos.keys(), key=ordenar_funcao)
+for _, row in df_lista.iterrows():
+    dados_func.append([
+        Paragraph(str(row["Funcao"]), styles['Normal']),
+        Paragraph(str(row["Funcionario"]), styles['Normal']),
+        f"{round(row['Saldo_horas'],2)} h",
+        f"R$ {row['Valor_R$']:,.2f}"
+    ])
 
-    total_geral_horas = 0
-    total_geral_valor = 0
+tabela_func = Table(dados_func, colWidths=[120, 200, 80, 100])
 
-    for i, funcao in enumerate(funcoes_ordenadas):
+tabela_func.setStyle(TableStyle([
+    ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0a7d3b")),
+    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+    ('GRID', (0,0), (-1,-1), 0.3, colors.grey),
+    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+]))
 
-        lista = grupos[funcao]
-
-        elementos = []
-
-        elementos.append(Paragraph(f"<b>Função: {funcao}</b>", styles['Normal']))
-        elementos.append(Spacer(1, 6))
-
-        dados_func = [["Funcionário", "Horas", "Valor (R$)"]]
-
-        subtotal_horas = 0
-        subtotal_valor = 0
-
-        for row in lista:
-            horas = round(row["Saldo_horas"], 2)
-            valor = row["Valor_R$"]
-
-            subtotal_horas += horas
-            subtotal_valor += valor
-
-            dados_func.append([
-                Paragraph(str(row["Funcionario"]), styles['Normal']),
-                f"{horas} h",
-                f"R$ {valor:,.2f}"
-            ])
-
-        tabela = Table(dados_func, colWidths=[250, 80, 100])
-
-        tabela.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0a7d3b")),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ]))
-
-        elementos.append(tabela)
-
-        elementos.append(Spacer(1, 6))
-        elementos.append(
-            Paragraph(
-                f"<b>Subtotal:</b> {round(subtotal_horas, 2)} h | R$ {subtotal_valor:,.2f}",
-                styles['Normal']
-            )
-        )
-
-        elementos.append(Spacer(1, 15))
-
-        if len(lista) <= 15:
-            conteudo.append(KeepTogether(elementos))
-        else:
-            conteudo.extend(elementos)
-
-        if i > 0 and i % 2 == 0:
-            conteudo.append(PageBreak())
-
-        total_geral_horas += subtotal_horas
-        total_geral_valor += subtotal_valor
+conteudo.append(tabela_func)
 
     # ===== TOTAL =====
     conteudo.append(Spacer(1, 10))
