@@ -161,6 +161,109 @@ col3.metric("📊 Média", f"{media_horas:.1f} h")
 st.markdown(f"### 🚨 Situação: {status}")
 
 # ===== PDF =====
+from reportlab.platypus import KeepTogether, PageBreak
+from collections import defaultdict
+
+def montar_blocos_funcionarios(conteudo, df_pos, styles):
+
+    ordem_prioridade = {
+        "MOTORISTA": 1,
+        "AUXILIAR DE ENTREGA": 2
+    }
+
+    def ordenar_funcao(funcao):
+        return ordem_prioridade.get(str(funcao).upper(), 99)
+
+    grupos = defaultdict(list)
+
+    for _, row in df_pos.iterrows():
+        grupos[row["Funcao"]].append(row)
+
+    funcoes_ordenadas = sorted(grupos.keys(), key=ordenar_funcao)
+
+    total_geral_horas = 0
+    total_geral_valor = 0
+
+    for i, funcao in enumerate(funcoes_ordenadas):
+
+        lista = grupos[funcao]
+
+        elementos = []
+
+        elementos.append(Paragraph(f"<b>Função: {funcao}</b>", styles['Normal']))
+        elementos.append(Spacer(1, 6))
+
+        dados_func = [["Funcionário", "Horas", "Valor (R$)"]]
+
+        subtotal_horas = 0
+        subtotal_valor = 0
+
+        for row in lista:
+            horas = round(row["Saldo_horas"], 2)
+            valor = row["Valor_R$"]
+
+            subtotal_horas += horas
+            subtotal_valor += valor
+
+            dados_func.append([
+                Paragraph(str(row["Funcionario"]), styles['Normal']),
+                f"{horas} h",
+                f"R$ {valor:,.2f}"
+            ])
+
+        tabela = Table(dados_func, colWidths=[250, 80, 100])
+
+        tabela.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0a7d3b")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ]))
+
+        elementos.append(tabela)
+
+        elementos.append(Spacer(1, 6))
+        elementos.append(
+            Paragraph(
+                f"<b>Subtotal:</b> {round(subtotal_horas,2)} h | R$ {subtotal_valor:,.2f}",
+                styles['Normal']
+            )
+        )
+
+        elementos.append(Spacer(1, 15))
+
+        # evita quebra feia
+        if len(lista) <= 15:
+            conteudo.append(KeepTogether(elementos))
+        else:
+            conteudo.extend(elementos)
+
+        # quebra controlada
+        if i > 0 and i % 2 == 0:
+            conteudo.append(PageBreak())
+
+        total_geral_horas += subtotal_horas
+        total_geral_valor += subtotal_valor
+
+    # TOTAL GERAL
+    conteudo.append(Spacer(1, 10))
+    conteudo.append(Paragraph("<b>TOTAL GERAL</b>", styles['Heading3']))
+    conteudo.append(Spacer(1, 5))
+
+    conteudo.append(
+        Paragraph(
+            f"<b>Horas:</b> {round(total_geral_horas,2)} h",
+            styles['Normal']
+        )
+    )
+
+    conteudo.append(
+        Paragraph(
+            f"<b>Valor:</b> R$ {total_geral_valor:,.2f}",
+            styles['Normal']
+        )
+    )
+
 def gerar_pdf():
     temp_file = tempfile.NamedTemporaryFile(delete=False)
 
