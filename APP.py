@@ -231,6 +231,14 @@ st.dataframe(
 )
 
 # ===== PDF =====
+# ===== GARANTIR COLUNA FUNÇÃO =====
+df_temp = df_pos.copy()
+
+if "Funcao" not in df_temp.columns:
+    df_temp["Funcao"] = "OUTROS"
+
+df_temp["Funcao"] = df_temp["Funcao"].astype(str).str.strip().str.upper()
+
 if st.button("📄 Gerar Relatório PDF"):
 
     from reportlab.platypus import KeepTogether, PageBreak
