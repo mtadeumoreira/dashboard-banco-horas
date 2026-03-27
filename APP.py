@@ -40,11 +40,20 @@ if st.sidebar.button("🔄 Atualizar Dados"):
 
 st.caption("📊 Fonte: automática (Google Sheets) ou manual (CSV)")
 
-# ===== GOOGLE SHEETS =====
-@st.cache_data(ttl=60)
+# ===== FUNÇÕES =====
+def normalizar_nome(nome):
+    return str(nome).strip().upper()
+
+@st.cache_data(ttl=300)
 def carregar_google():
     sheet_id = "1zFKLz8SMEifA8si1f-ORLdGnbrNkOlw3vP7jNzDff9Y"
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    return pd.read_csv(url)
+
+@st.cache_data(ttl=300)
+def carregar_funcoes():
+    sheet_id_funcoes = "1Hr9rxXCQydxocV8P8mbC12u_5V0konGiUxVN9PJ-cYI"
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id_funcoes}/export?format=csv"
     return pd.read_csv(url)
 
 # ===== UPLOAD =====
@@ -137,9 +146,10 @@ else:
     cor = "red"
     status = "🔴 Crítico"
 
-# ===== CARDS =====
+# ===== CARDS PRINCIPAIS =====
 col1, col2, col3 = st.columns(3)
 
+# CARD 1 - BANCO DE HORAS
 col1.markdown(f"""
 <div style="background:#0a7d3b;padding:20px;border-radius:10px;color:white;text-align:center">
 <h4>⏱️ Banco Positivo</h4>
@@ -147,6 +157,7 @@ col1.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# CARD 2 - VALOR
 col2.markdown(f"""
 <div style="background:#f2c94c;padding:20px;border-radius:10px;text-align:center">
 <h4>💰 Valor a Pagar</h4>
@@ -154,13 +165,23 @@ col2.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# CARD 3 - MÉDIAS
 col3.markdown(f"""
+<div style="background:#ffffff;padding:20px;border-radius:10px;text-align:center;border:2px solid #0a7d3b">
+<h4 style="color:#0a7d3b;">📊 Resumo Médio</h4>
+<p>⏱️ Média: <b>{media_horas:.2f} h</b></p>
+<p>💰 Média: <b>R$ {media_valor:,.2f}</b></p>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("")
+
+# ===== CARD STATUS (LINHA SEPARADA) =====
+st.markdown(f"""
 <div style="background:{cor};padding:20px;border-radius:10px;color:white;text-align:center">
-<h4>🚨 Situação</h4>
-<p>👥 {qtd_func} funcionários</p>
-<p>⏱️ Média: {media_horas:.2f} h</p>
-<p>💰 Média: R$ {media_valor:,.2f}</p>
-<h3>{status}</h3>
+<h4>🚨 Situação do Banco de Horas</h4>
+<p>👥 {qtd_func} funcionários impactados</p>
+<h2>{status}</h2>
 </div>
 """, unsafe_allow_html=True)
 
