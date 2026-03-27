@@ -81,6 +81,22 @@ df = df.rename(columns={
 df["Funcionario"] = df["Funcionario"].astype(str).str.strip()
 df = df[(df["Funcionario"] != "") & (~df["Funcionario"].str.lower().isin(["null","none","nan"]))]
 
+# ===== NORMALIZAR =====
+df["Funcionario"] = df["Funcionario"].apply(normalizar_nome)
+
+# ===== CARREGAR FUNÇÕES E MERGE =====
+try:
+    df_funcoes = carregar_funcoes()
+    df_funcoes["Funcionario"] = df_funcoes["Funcionario"].apply(normalizar_nome)
+
+    df = df.merge(df_funcoes, on="Funcionario", how="left")
+    df["Funcao"] = df["Funcao"].fillna("Não informado")
+
+except:
+    df["Funcao"] = "Não informado"
+
+
+
 # ===== CONVERSÃO =====
 def converter_horas(valor):
     try:
