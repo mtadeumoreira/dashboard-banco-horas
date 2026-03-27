@@ -297,23 +297,32 @@ def gerar_pdf():
     conteudo.append(Paragraph("<b>Resumo Executivo</b>", styles['Heading3']))
     conteudo.append(Spacer(1, 10))
 
+    # ===== NORMALIZAR FUNÇÃO =====
+    def normalizar_funcao(funcao):
+        return str(funcao).replace("\n", " ").strip().upper()
+
+    df_temp = df_pos.copy()
+    df_temp["Funcao"] = df_temp["Funcao"].apply(normalizar_funcao)
+
     # ===== AGRUPAMENTO POR FUNÇÃO =====
-    resumo_funcoes = df_pos.groupby("Funcao").agg({
+    resumo_funcoes = df_temp.groupby("Funcao").agg({
         "Saldo_horas": "sum",
         "Valor_R$": "sum"
     }).reset_index()
 
-    ordem_prioridade = {
-        "MOTORISTA": 1,
-        "AUXILIAR DE ENTREGA": 2
-    }
+    # ===== ORDEM PERSONALIZADA =====
+    def ordenar_funcao(funcao):
+        if "MOTORISTA" in funcao:
+            return (1, funcao)
+        elif "AUXILIAR DE ENTREGA" in funcao or "AUXILIAR DE ENTREGAS" in funcao:
+            return (2, funcao)
+        else:
+            return (3, funcao)
 
-    resumo_funcoes["ordem"] = resumo_funcoes["Funcao"].apply(
-        lambda x: ordem_prioridade.get(str(x).upper(), 99)
-    )
-
+    resumo_funcoes["ordem"] = resumo_funcoes["Funcao"].apply(ordenar_funcao)
     resumo_funcoes = resumo_funcoes.sort_values("ordem")
 
+    # ===== TABELA RESUMO =====
     dados_resumo = [
         ["Indicador", "Valor"],
         ["Total de registros", total_registros],
@@ -322,7 +331,6 @@ def gerar_pdf():
         ["Banco de horas (h)", round(total_pos, 2)],
     ]
 
-    # ===== INSERIR FUNÇÕES =====
     for _, row in resumo_funcoes.iterrows():
         dados_resumo.append([
             f"Total {row['Funcao']}",
@@ -350,18 +358,11 @@ def gerar_pdf():
     conteudo.append(tabela_resumo)
     conteudo.append(Spacer(1, 25))
 
-    # ===== LISTA LIMPA =====
+    # ===== LISTA FUNCIONÁRIOS =====
     conteudo.append(Paragraph("<b>Funcionários com saldo positivo</b>", styles['Heading3']))
     conteudo.append(Spacer(1, 10))
 
-    def ordenar_funcao(funcao):
-        ordem = {
-            "MOTORISTA": 1,
-            "AUXILIAR DE ENTREGA": 2
-        }
-        return ordem.get(str(funcao).upper(), 99)
-
-    df_lista = df_pos.copy()
+    df_lista = df_temp.copy()
     df_lista["ordem"] = df_lista["Funcao"].apply(ordenar_funcao)
 
     df_lista = df_lista.sort_values(
@@ -373,8 +374,8 @@ def gerar_pdf():
 
     for _, row in df_lista.iterrows():
         dados_func.append([
-            Paragraph(str(row["Funcao"]), styles['Normal']),
-            Paragraph(str(row["Funcionario"]), styles['Normal']),
+            Paragraph(row["Funcao"], styles['Normal']),
+            Paragraph(row["Funcionario"], styles['Normal']),
             f"{round(row['Saldo_horas'],2)} h",
             f"R$ {row['Valor_R$']:,.2f}"
         ])
