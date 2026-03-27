@@ -231,20 +231,24 @@ st.dataframe(
 )
 
 # ===== PDF =====
-# ===== GARANTIR COLUNA FUNÇÃO =====
-df_temp = df_pos.copy()
-
-if "Funcao" not in df_temp.columns:
-    df_temp["Funcao"] = "OUTROS"
-
-df_temp["Funcao"] = df_temp["Funcao"].astype(str).str.strip().str.upper()
-
 if st.button("📄 Gerar Relatório PDF"):
 
     from reportlab.platypus import KeepTogether, PageBreak
     from collections import defaultdict
+    from datetime import datetime
 
-    def montar_blocos_funcionarios(conteudo, df_pos, styles):
+    # ===== PREPARAR BASE =====
+    df_temp = df_pos.copy()
+
+    if "Funcao" not in df_temp.columns:
+        df_temp["Funcao"] = "OUTROS"
+
+    df_temp["Funcao"] = df_temp["Funcao"].astype(str).str.strip().str.upper()
+
+    # GARANTIR VALOR
+    df_temp["Valor_R$"] = df_temp["Saldo_horas"] * valor_hora
+
+    def montar_blocos_funcionarios(conteudo, df_base, styles):
 
         ordem_prioridade = {
             "MOTORISTA": 1,
@@ -256,14 +260,14 @@ if st.button("📄 Gerar Relatório PDF"):
 
         grupos = defaultdict(list)
 
-        for _, row in df_pos.iterrows():
+        for _, row in df_base.iterrows():
             grupos[row["Funcao"]].append(row)
 
         funcoes_ordenadas = sorted(grupos.keys(), key=ordenar_funcao)
 
         for funcao in funcoes_ordenadas:
 
-            lista = grupos[funcao]
+            lista = sorted(grupos[funcao], key=lambda x: x["Saldo_horas"], reverse=True)
 
             conteudo.append(Paragraph(f"<b>Função: {funcao}</b>", styles['Normal']))
             conteudo.append(Spacer(1, 6))
@@ -324,7 +328,7 @@ if st.button("📄 Gerar Relatório PDF"):
         conteudo.append(Spacer(1, 20))
 
         # LISTA AGRUPADA
-        montar_blocos_funcionarios(conteudo, df_pos, styles)
+        montar_blocos_funcionarios(conteudo, df_temp, styles)
 
         # RODAPÉ
         conteudo.append(Spacer(1, 20))
@@ -347,4 +351,3 @@ if st.button("📄 Gerar Relatório PDF"):
             f,
             file_name="relatorio_banco_horas.pdf"
         )
-    
