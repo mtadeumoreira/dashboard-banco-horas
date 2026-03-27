@@ -158,6 +158,7 @@ col3.markdown(f"""
 <div style="background:{cor};padding:20px;border-radius:10px;color:white;text-align:center">
 <h4>🚨 Situação</h4>
 <p>👥 {qtd_func} funcionários</p>
+<p>⏱️ Média: {media_horas:.2f} h</p>
 <p>💰 Média: R$ {media_valor:,.2f}</p>
 <h3>{status}</h3>
 </div>
@@ -197,7 +198,16 @@ st.plotly_chart(fig2, use_container_width=True)
 
 # ===== LISTA =====
 st.subheader("📋 Funcionários com saldo positivo")
-st.dataframe(df_pos.sort_values("Saldo_horas", ascending=False)[["Funcionario","Saldo_horas"]])
+df_lista = df_pos.copy()
+
+df_lista["Valor_R$"] = df_lista["Saldo_horas"] * valor_hora
+
+st.dataframe(
+    df_lista.sort_values("Saldo_horas", ascending=False)[
+        ["Funcionario", "Saldo_horas", "Valor_R$"]
+    ],
+    use_container_width=True
+)
 
 # ===== PDF =====
 if st.button("📄 Gerar Relatório PDF"):
