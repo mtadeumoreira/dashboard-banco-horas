@@ -357,17 +357,16 @@ if st.button("📄 Gerar Relatório PDF"):
 
         return temp_file.name
 
-    # EXECUTA
+        # EXECUTA
     pdf_path = gerar_pdf()
 
-   from datetime import datetime
+    # NOME DO ARQUIVO COM DATA
+    data_arquivo = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
-data_arquivo = datetime.now().strftime("%Y-%m-%d_%H-%M")
-
-# DOWNLOAD
-with open(pdf_path, "rb") as f:
-    st.download_button(
-        "📥 Baixar PDF",
-        f,
-        file_name=f"relatorio_banco_horas_{data_arquivo}.pdf"
-    )
+    # DOWNLOAD
+    with open(pdf_path, "rb") as f:
+        st.download_button(
+            "📥 Baixar PDF",
+            f,
+            file_name=f"relatorio_banco_horas_{data_arquivo}.pdf"
+        )
