@@ -360,10 +360,14 @@ if st.button("📄 Gerar Relatório PDF"):
     # EXECUTA
     pdf_path = gerar_pdf()
 
-    # DOWNLOAD
-    with open(pdf_path, "rb") as f:
-        st.download_button(
-            "📥 Baixar PDF",
-            f,
-            file_name="relatorio_banco_horas.pdf"
-        )
+   from datetime import datetime
+
+data_arquivo = datetime.now().strftime("%Y-%m-%d_%H-%M")
+
+# DOWNLOAD
+with open(pdf_path, "rb") as f:
+    st.download_button(
+        "📥 Baixar PDF",
+        f,
+        file_name=f"relatorio_banco_horas_{data_arquivo}.pdf"
+    )
