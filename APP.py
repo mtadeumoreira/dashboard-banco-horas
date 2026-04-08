@@ -10,6 +10,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 st.set_page_config(layout="wide")
 
@@ -138,7 +139,8 @@ with st.expander("🔍 Validação dos dados"):
 df = df.dropna(subset=["Saldo_horas"])
 
 # ===== DATA DE ATUALIZAÇÃO =====
-data_importacao = datetime.now().strftime("%d/%m/%Y %H:%M")
+fuso_br = ZoneInfo("America/Santarem")
+data_importacao = datetime.now(fuso_br).strftime("%d/%m/%Y %H:%M")
 st.caption(f"🕒 Última atualização: {data_importacao}")
 
 # ===== KPIs =====
@@ -252,6 +254,7 @@ if st.button("📄 Gerar Relatório PDF"):
     from reportlab.platypus import KeepTogether, PageBreak
     from collections import defaultdict
     from datetime import datetime
+    from zoneinfo import ZoneInfo
 
     # ===== PREPARAR BASE =====
     df_temp = df_pos.copy()
@@ -349,7 +352,7 @@ if st.button("📄 Gerar Relatório PDF"):
         # RODAPÉ
         conteudo.append(Spacer(1, 20))
         conteudo.append(Paragraph(
-            f"Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            f"Relatório gerado em {datetime.now(fuso_br).strftime('%d/%m/%Y %H:%M')}",
             styles['Italic']
         ))
 
@@ -361,7 +364,7 @@ if st.button("📄 Gerar Relatório PDF"):
     pdf_path = gerar_pdf()
 
     # NOME DO ARQUIVO COM DATA
-    data_arquivo = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    data_arquivo = datetime.now(fuso_br).strftime("%Y-%m-%d_%H-%M")
 
     # DOWNLOAD
     with open(pdf_path, "rb") as f:
